@@ -1,0 +1,16 @@
+SHELL = /bin/bash
+
+OBJS = matrix.cu sdl.cu \
+       camera.cu geometry.cu shading.cu \
+       main.cu
+
+SDLCONF = `which sdl-config`
+FLAGS = `/usr/bin/sdl-config --cflags --libs`
+NVCC = `which nvcc`
+COMPILE = $(NVCC) `$(FLAGS)`
+
+raytracer: $(OBJS)
+	$(COMPILE) $(OBJS) -o raytracer
+
+clean:
+	rm raytracer *~
