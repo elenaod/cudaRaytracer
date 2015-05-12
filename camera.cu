@@ -3,6 +3,7 @@
 #include "util.cuh"
 #include "sdl.cuh"
 
+__device__
 void Camera::beginFrame(void) {
   double x = -aspect;
   double y = +1;
@@ -34,6 +35,7 @@ void Camera::beginFrame(void) {
   downLeft += pos;
 }
 
+__device__
 Ray Camera::getScreenRay(double x, double y) const{
   Ray result; // A, B -     C = A + (B - A) * x
   result.start = this->pos;

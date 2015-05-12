@@ -16,6 +16,7 @@ class Geometry {
 public:
   virtual ~Geometry() {}
 
+__device__
   virtual bool intersect(Ray ray, IntersectionData& data) = 0;
 };
 
@@ -24,6 +25,7 @@ class Plane: public Geometry {
 public:
   Plane(double _y) { y = _y; }
 
+  __device__
   bool intersect(Ray ray, IntersectionData& data);
 };
 

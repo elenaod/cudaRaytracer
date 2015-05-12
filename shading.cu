@@ -13,6 +13,7 @@ CheckerShader::CheckerShader(const Color& c1,
   this->size = size;
 }
 
+__device__
 Color CheckerShader::shade(Ray& ray, const Light& light,
                            const IntersectionData& data) {
   // example - u = 150, -230

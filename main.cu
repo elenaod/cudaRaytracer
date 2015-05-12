@@ -1,5 +1,5 @@
 #include <SDL/SDL.h>
-#include <vector>
+#include <thrust/device_vector.h>
 #include "sdl.cuh"
 #include "matrix.cuh"
 #include "camera.cuh"
@@ -13,21 +13,29 @@ using namespace std;
 // come to think of it, separate struct for the scene?
 // I need the camera and the nodes everywhere...
 
-Color raytrace(Ray ray, const Light& _light, const vector<Node*>& _nodes){
+__device__
+Color raytrace(Ray ray,
+               const Light& _light,
+               const thrust::device_vector<Node*>& _nodes){
   IntersectionData data;
-  for (int i = 0; i < (int) _nodes.size(); i++)
-    if (_nodes[i]->geom->intersect(ray, data))
-      return _nodes[i]->shader->shade(ray, _light, data);
-
+  thrust::device_vector<int> dummy;
+//  for (int i = 0; i < (int) _nodes.size(); i++)
+//    if (_nodes[i]->geom->intersect(ray, data))
+//      return _nodes[i]->shader->shade(ray, _light, data);
+  for (thrust::device_vector<int>::iterator iter = dummy.begin();
+       iter != dummy.end(); ++iter) {
+//    if (iter->geom->intersect(ray, data))
+//      return iter->shader->shade(ray, _light, data);
+  }
   return Color(0, 0, 0);
 }
 
 // makes scene == camera + geometries + shaders + lights
 void initializeScene(Camera*& _camera,
                      Light* _light,
-                     vector<Geometry*>& _geometries,
-                     vector<Shader*>& _shaders,
-                     vector<Node*>& _nodes) {
+                     thrust::device_vector<Geometry*>& _geometries,
+                     thrust::device_vector<Shader*>& _shaders,
+                     thrust::device_vector<Node*>& _nodes) {
   _camera = new Camera;
   _camera->yaw = 0;
   _camera->pitch = -30;
@@ -54,15 +62,22 @@ void initializeScene(Camera*& _camera,
   _nodes.push_back(floor);
 }
 
+__global__
 void renderScene(const Camera& _camera,
                  const Light& _light,
-                 const vector<Node*>& _nodes,
+                 const thrust::device_vector<Node*>& _nodes,
                  Color** buffer) {
-  for (int y = 0; y < RESY; y++)
-    for (int x = 0; x < RESX; x++) {
-      Ray ray = _camera.getScreenRay(x, y);
-      buffer[y][x] = raytrace(ray, _light, _nodes);
-    }
+  // calculate thread idx
+  int idx_thrd_x = blockIdx.x * blockDim.x + threadIdx.x;
+  int idx_thrd_y = blockIdx.y * blockDim.y + threadIdx.y;
+  int grid_width = gridDim.x * blockDim.x;
+  int idx_thread = idx_thrd_y * grid_width + idx_thrd_x;
+
+  // calculate coordinates of pixel we're painting
+  int x = idx_thread / RESX;
+  int y = idx_thread % RESX;
+  Ray ray = _camera.getScreenRay(x, y);
+  buffer[y][x] = raytrace(ray, _light, _nodes);
 }
 
 int main(int argc, char** argv) {
@@ -75,9 +90,9 @@ int main(int argc, char** argv) {
 
   Camera *camera = 0;
   Light pointLight;
-  vector<Geometry*> geometries;
-  vector<Shader*> shaders;
-  vector<Node*> nodes;
+  thrust::device_vector<Geometry*> geometries;
+  thrust::device_vector<Shader*> shaders;
+  thrust::device_vector<Node*> nodes;
 
   printf("Variables declared...\n");
   if (!initGraphics(&screen, RESX, RESY)) return -1;
@@ -87,7 +102,7 @@ int main(int argc, char** argv) {
   printf("Scene initialized... light color = (%f, %f, %f)\n",
       pointLight.color.r, pointLight.color.g, pointLight.color.b);
   printf("Scene initialized... light power = %f\n", pointLight.power);
-  renderScene(*camera, pointLight, nodes, vfb);
+  renderScene<<<1,16>>>(*camera, pointLight, nodes, vfb);
   displayVFB(screen, vfb);
   // remove so we can time
   waitForUserExit();

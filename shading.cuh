@@ -14,6 +14,7 @@ public:
   Shader(const Color& color);
   virtual ~Shader() {}
 
+__device__
   virtual Color shade(Ray& ray, const Light& light,
                       const IntersectionData& data) = 0;
 };
@@ -23,6 +24,8 @@ class CheckerShader: public Shader {
   double size;
 public:
   CheckerShader(const Color& c1, const Color& c2, double size = 1);
+
+  __device__
   Color shade(Ray& ray,
               const Light& light,
               const IntersectionData& data);

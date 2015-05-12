@@ -1,6 +1,7 @@
 #include <math.h>
 #include "matrix.cuh"
 
+__device__
 Matrix rotX(double angle) {
   double S = sin(angle), C = cos(angle);
   Matrix a(1.0);
@@ -9,6 +10,7 @@ Matrix rotX(double angle) {
   return a;
 }
 
+__device__
 Matrix rotY(double angle) {
   double S = sin(angle), C = cos(angle);
   Matrix a(1.0);
@@ -17,6 +19,7 @@ Matrix rotY(double angle) {
   return a;
 }
 
+__device__
 Matrix rotZ(double angle) {
   double S = sin(angle), C = cos(angle);
   Matrix a(1.0);
@@ -25,6 +28,7 @@ Matrix rotZ(double angle) {
   return a;
 }
 
+__device__
 Matrix operator * (const Matrix& a, const Matrix& b) {
   Matrix c(0.0);
   for (int i = 0; i < 3; i++)
@@ -34,6 +38,7 @@ Matrix operator * (const Matrix& a, const Matrix& b) {
   return c;
 }
 
+__device__
 double determinant(const Matrix& a) {
   return a.m[0][0] * a.m[1][1] * a.m[2][2]
        - a.m[0][0] * a.m[1][2] * a.m[2][1]
@@ -43,6 +48,7 @@ double determinant(const Matrix& a) {
        - a.m[0][2] * a.m[1][1] * a.m[2][0];
 }
 
+__device__
 double cofactor(const Matrix& m, int ii, int jj) {
   int rows[2], rc = 0, cols[2], cc = 0;
   for (int i = 0; i < 3; i++)
@@ -54,6 +60,7 @@ double cofactor(const Matrix& m, int ii, int jj) {
   return t;
 }
 
+__device__
 Matrix inverseMatrix(const Matrix& m) {
   double D = determinant(m);
   if (fabs(D) < 1e-12) return m; // an error; matrix is not invertible
