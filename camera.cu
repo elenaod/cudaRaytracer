@@ -3,7 +3,6 @@
 #include "util.cuh"
 #include "sdl.cuh"
 
-__device__
 void Camera::beginFrame(void) {
   double x = -aspect;
   double y = +1;
@@ -47,6 +46,5 @@ Ray Camera::getScreenRay(double x, double y) const{
   result.dir = target - this->pos;
 
   result.dir.normalize();
-
   return result;
 }

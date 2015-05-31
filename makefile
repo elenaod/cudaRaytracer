@@ -9,7 +9,7 @@ NVCC = /usr/local/cuda-6.0/bin/nvcc
 COMPILE = $(NVCC) $(FLAGS) 
 
 raytracer: $(OBJS)
-	$(COMPILE) $(OBJS) -o raytracer
+	$(COMPILE) --gpu-architecture=sm_20 -rdc=true $(OBJS) -o raytracer
 
 clean:
 	rm raytracer *~

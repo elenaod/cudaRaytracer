@@ -1,9 +1,11 @@
 #include "geometry.cuh"
 #include "vector.cuh"
+#include <stdio.h>
 
-__device__
+__host__ __device__
 bool Plane::intersect(Ray ray, IntersectionData& data)
 {
+/*  printf("G\n");
   if (ray.dir.y >= 0) return false;
   else {
     double yDiff = ray.dir.y;
@@ -15,5 +17,6 @@ bool Plane::intersect(Ray ray, IntersectionData& data)
     data.u = data.p.x;
     data.v = data.p.z;
     return true;
-  }
+  }*/
+  return true;
 }

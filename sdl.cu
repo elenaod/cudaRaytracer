@@ -25,7 +25,7 @@ void closeGraphics(void)
 }
 
 /// displays a VFB (virtual frame buffer) to the real framebuffer, with the necessary color clipping
-void displayVFB(SDL_Surface* _screen, Color** vfb)
+void displayVFB(SDL_Surface* _screen, Color* vfb)
 {
   int rs = _screen->format->Rshift;
   int gs = _screen->format->Gshift;
@@ -34,7 +34,8 @@ void displayVFB(SDL_Surface* _screen, Color** vfb)
     Uint32 *row = (Uint32*) ((Uint8*)
                            _screen->pixels + y * _screen->pitch);
     for (int x = 0; x < _screen->w; x++)
-      row[x] = vfb[y][x].toRGB32(rs, gs, bs);
+      // it was VFB_MAX_SIZE here
+      row[x] = vfb[y * RESX + x].toRGB32(rs, gs, bs);
   }
   SDL_Flip(_screen);
 }

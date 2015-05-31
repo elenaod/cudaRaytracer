@@ -11,34 +11,35 @@ struct IntersectionData {
   double u, v;
 };
 
-// so... what to do with these?
 class Geometry {
-public:
-  virtual ~Geometry() {}
-
-__device__
-  virtual bool intersect(Ray ray, IntersectionData& data) = 0;
+  public:
+    __host__ __device__
+    virtual bool intersect(Ray ray, IntersectionData& data) = 0;
+    virtual ~Geometry() {}
 };
 
-class Plane: public Geometry {
-  double y;
-public:
-  Plane(double _y) { y = _y; }
+class Plane : public Geometry{
+  public:
+    int y;
 
-  __device__
-  bool intersect(Ray ray, IntersectionData& data);
+    Plane() {y = 0;}
+    Plane(int _y) {y = _y;}
+
+    __host__ __device__
+    bool intersect (Ray ray, IntersectionData& data);
 };
 
 // could I possibly remove that?
 class Shader;
 
-class Node {
+struct Node {
 public:
   Geometry* geom;
   Shader* shader;
 
   Node() {}
   Node(Geometry* g, Shader* s) { geom = g; shader = s; }
+  void setNode(Geometry *g, Shader *s) {geom = g; shader = s;}
 };
 
 #endif // __GEOMETRY_H__

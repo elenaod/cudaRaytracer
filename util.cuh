@@ -9,7 +9,7 @@ __device__
 inline double signOf(double x) { return x > 0 ? +1 : -1; }
 __device__
 inline double sqr(double a) { return a * a; }
-__device__
+__host__ __device__
 inline double toRadians(double angle) { return angle / 180.0 * PI; }
 __device__
 inline double toDegrees(double angle_rad) { return angle_rad / PI * 180.0; }

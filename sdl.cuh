@@ -10,8 +10,7 @@ bool initGraphics(SDL_Surface** _screen,
 void closeGraphics(void);
 
 //!< displays the VFB (Virtual framebuffer) to the real one.
-void displayVFB(SDL_Surface* _screen,
-                Color** vfb);
+void displayVFB(SDL_Surface* _screen, Color* vfb);
 
 //!< Pause. Wait until the user closes the application
 void waitForUserExit(void);

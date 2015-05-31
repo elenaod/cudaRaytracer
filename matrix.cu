@@ -1,7 +1,7 @@
 #include <math.h>
 #include "matrix.cuh"
 
-__device__
+__host__ __device__
 Matrix rotX(double angle) {
   double S = sin(angle), C = cos(angle);
   Matrix a(1.0);
@@ -10,7 +10,7 @@ Matrix rotX(double angle) {
   return a;
 }
 
-__device__
+__host__ __device__
 Matrix rotY(double angle) {
   double S = sin(angle), C = cos(angle);
   Matrix a(1.0);
@@ -19,7 +19,7 @@ Matrix rotY(double angle) {
   return a;
 }
 
-__device__
+__host__ __device__
 Matrix rotZ(double angle) {
   double S = sin(angle), C = cos(angle);
   Matrix a(1.0);
