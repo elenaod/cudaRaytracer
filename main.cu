@@ -53,12 +53,12 @@ Color raytrace(Ray ray,
     }
   }
 
-  return Color(0, 0.8, 0);
+  return Color(0, 0, 0);
 }
 
 // makes scene == camera + geometries + shaders + lights
 void initializeScene(Camera*& _camera,
-                     Light* _light,
+                     Light*& _light,
                      thrust::device_vector<Geometry*>& _geometries,
                      thrust::device_vector<Shader*>& _shaders,
                      thrust::device_vector<Node>& _nodes) {
@@ -197,5 +197,6 @@ int main(int argc, char** argv) {
   delete camera;
   free(host_vfb);
   cudaFree(device_vfb);
+  // well, lots more to free, technically!
   return 0;
 }

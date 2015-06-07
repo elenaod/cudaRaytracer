@@ -1,5 +1,6 @@
 #include "shading.cuh"
 #include <cstdio>
+
 Shader::Shader(const Color& color)
 {
   this->color = color;
@@ -23,13 +24,12 @@ Color CheckerShader::shade(Ray& ray, const Light& light,
   int white = (x + y) % 2;
 
   Color result = white ? color2 : color;
-  printf("%f, %f, %f\n", result.r, result.b, result.g);
-//  result = result * light.color * light.power / 
-//           (data.p - light.pos).lengthSqr();
-//  Vector lightDir = light.pos - data.p;
-//  lightDir.normalize();
+  result = result * light.color * light.power / 
+           (data.p - light.pos).lengthSqr();
+  Vector lightDir = light.pos - data.p;
+  lightDir.normalize();
 
-//  double cosTheta = dot(lightDir, data.normal);
-//  result = result * cosTheta;
+  double cosTheta = dot(lightDir, data.normal);
+  result = result * cosTheta;
   return result;
 }
