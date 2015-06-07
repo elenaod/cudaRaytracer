@@ -10,9 +10,15 @@ using namespace std;
 
 #include <cstdio>
 
-// remove global variables
-// come to think of it, separate struct for the scene?
-// I need the camera and the nodes everywhere...
+struct Node {
+public:
+  Geometry* geom;
+  Shader* shader;
+
+  Node() {}
+  Node(Geometry* g, Shader* s) { geom = g; shader = s; }
+  void setNode(Geometry *g, Shader *s) {geom = g; shader = s;}
+};
 
 __device__
 Color raytrace(Ray ray,
@@ -23,27 +29,31 @@ Color raytrace(Ray ray,
 
   Node value = *start;
   Plane *pl = (Plane*) value.geom;
-  printf("raytrace::pl = %llu, pl->y = %d\n", pl, pl->y);
   pl->intersect(ray, data);
-  printf("Y");
 
   for (thrust::device_vector<Node>::iterator iter = start;
          iter != end; ++iter){
     Node value = *iter;
-    if (value.geom->intersect(ray, data)){
-////      return value.shader->shade(ray, _light, data);
-      return Color (0,1,0);
+    bool intersect; Color shade;
+    switch(value.geom->t){
+      case PLANE: {
+        Plane* p = (Plane*) value.geom;
+        intersect = p->intersect(ray, data);
+        break;
+      }
+    };
+    if (intersect){
+      switch(value.shader->t){
+        case CHECKER: {
+          CheckerShader* s = (CheckerShader*) value.shader;
+          shade = s->shade(ray, _light, data);
+          return shade;
+        }
+      }
     }
   }
-  return Color(0, 0, 0);
-}
 
-__global__
-void debugPrint(Geometry *plane){
-  printf("=== debug print ===\n");
-  Plane *pl = (Plane*) plane;
-  printf("plane %llu, %d\n", pl, pl->y);
-  printf("=== debug print ===\n");
+  return Color(0, 0.8, 0);
 }
 
 // makes scene == camera + geometries + shaders + lights
@@ -62,6 +72,7 @@ void initializeScene(Camera*& _camera,
 
   _camera->beginFrame();
 
+  _light = new Light;
   _light->pos = Vector(-30, 100, 250);
   _light->color = Color(1, 1, 1);
   _light->power = 50000;
@@ -73,8 +84,8 @@ void initializeScene(Camera*& _camera,
   free(plane);
   _geometries.push_back(dev_plane);
 
-  CheckerShader* checker = new CheckerShader(Color(0, 0, 0),
-                                             Color(0, 0.5, 1), 5);
+  CheckerShader* checker = new CheckerShader(Color(1, 1, 1),
+                                             Color(0, 0, 0), 50);
   CheckerShader* dev_checker = 0;
   cudaMalloc((void**)&dev_checker, sizeof(CheckerShader));
   cudaMemcpy(dev_checker, checker,
@@ -83,15 +94,14 @@ void initializeScene(Camera*& _camera,
   free(checker);
   _shaders.push_back(dev_checker);
 
-  printf("allocating floor node\n");
   Node floor;
   floor.geom = dev_plane; floor.shader = dev_checker;
   _nodes.push_back(floor);
 }
 
 __global__
-void renderScene(const Camera& _camera,
-                 const Light& _light,
+void renderScene(Camera* _camera,
+                 Light* _light,
                  thrust::device_vector<Node>::iterator start,
                  thrust::device_vector<Node>::iterator end,
                  Color* buffer) {
@@ -107,11 +117,11 @@ void renderScene(const Camera& _camera,
   int y = idx_thread % 4;
   for(int i = x * 160; i < (x + 1) * 160; ++i)
     for(int j = y * 160; j < (y + 1) * 160; ++j){
-    Ray ray = _camera.getScreenRay(i, j);
-    buffer[j * RESX + i] = raytrace(ray, _light, start, end);
+    Ray ray = _camera->getScreenRay(i, j);
+    buffer[j * RESX + i] = raytrace(ray, *_light, start, end);
   }
 
-  printf("renderScene::Scene rendered\n");
+  printf("renderScene::Scene rendered for (%d, %d)\n", x, y);
 }
 
 int main(int argc, char** argv) {
@@ -137,7 +147,7 @@ int main(int argc, char** argv) {
 
   // now those are no the host, originally!
   Camera *camera = 0;
-  Light pointLight;
+  Light *pointLight = 0;
   thrust::device_vector<Geometry*> geometries;
   thrust::device_vector<Shader*> shaders;
   thrust::device_vector<Node> nodes;
@@ -145,24 +155,29 @@ int main(int argc, char** argv) {
   printf("Variables declared...\n");
   if (!initGraphics(&screen, RESX, RESY)) return -1;
   printf("Graphics initialized...\n");
-  initializeScene(camera, &pointLight, geometries, shaders, nodes);
+  initializeScene(camera, pointLight, geometries, shaders, nodes);
   printf("Scene initialized... camera = %d\n", camera);
-  printf("Scene initialized... light color = (%f, %f, %f)\n",
-      pointLight.color.r, pointLight.color.g, pointLight.color.b);
-  printf("Scene initialized... light power = %f\n", pointLight.power);
 
   printf("Scene initialized... nodes.size: %llu\n", nodes.size());
   printf("Scene initialized... start - end = %llu\n",
            nodes.end() - nodes.begin());
+
   Camera *device_camera = 0;
   cudaMalloc((void**) &device_camera, sizeof(Camera));
+  cudaMemcpy(device_camera, camera,
+             sizeof(Camera), cudaMemcpyHostToDevice);
+  Light *device_light = 0;
+  cudaMalloc((void**) &device_light, sizeof(Light));
+  cudaMemcpy(device_light, pointLight,
+             sizeof(Light), cudaMemcpyHostToDevice);
+
   thrust::device_vector<Node>::iterator start = nodes.begin();
   thrust::device_vector<Node>::iterator end = nodes.end();
 
   printf("Scene initialized... start - end with vars = %llu\n",
            end - start);
 
-  renderScene<<<1, 16>>>(*device_camera, pointLight,
+  renderScene<<<1, 16>>>(device_camera, device_light,
                         start, end, device_vfb);
 
   cudaMemcpy(host_vfb,

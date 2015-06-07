@@ -41,10 +41,9 @@ Ray Camera::getScreenRay(double x, double y) const{
   Vector target = upLeft + 
     (upRight - upLeft) * (x / (double) RESX) +
     (downLeft - upLeft) * (y / (double) RESY);
-
   // A - camera; B = target
   result.dir = target - this->pos;
-
+  
   result.dir.normalize();
   return result;
 }

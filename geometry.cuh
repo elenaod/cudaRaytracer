@@ -11,19 +11,25 @@ struct IntersectionData {
   double u, v;
 };
 
+enum geometry_type {
+  GENERIC, PLANE
+};
+
 class Geometry {
   public:
+    geometry_type t;
+    Geometry() {}
     __host__ __device__
-    virtual bool intersect(Ray ray, IntersectionData& data) = 0;
-    virtual ~Geometry() {}
+    bool intersect(Ray ray, IntersectionData& data) {return false;}
+    ~Geometry() {}
 };
 
 class Plane : public Geometry{
   public:
     int y;
 
-    Plane() {y = 0;}
-    Plane(int _y) {y = _y;}
+    Plane() {y = 0; t = PLANE;}
+    Plane(int _y) {y = _y; t = PLANE;}
 
     __host__ __device__
     bool intersect (Ray ray, IntersectionData& data);
@@ -32,14 +38,5 @@ class Plane : public Geometry{
 // could I possibly remove that?
 class Shader;
 
-struct Node {
-public:
-  Geometry* geom;
-  Shader* shader;
-
-  Node() {}
-  Node(Geometry* g, Shader* s) { geom = g; shader = s; }
-  void setNode(Geometry *g, Shader *s) {geom = g; shader = s;}
-};
 
 #endif // __GEOMETRY_H__
