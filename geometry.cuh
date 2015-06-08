@@ -18,9 +18,8 @@ enum geometry_type {
 class Geometry {
   public:
     geometry_type t;
+
     Geometry() {}
-    __host__ __device__
-    bool intersect(Ray ray, IntersectionData& data) {return false;}
     ~Geometry() {}
 };
 
@@ -32,11 +31,6 @@ class Plane : public Geometry{
     Plane(int _y) {y = _y; t = PLANE;}
 
     __host__ __device__
-    bool intersect (Ray ray, IntersectionData& data);
+    bool intersect (Ray& ray, IntersectionData& data);
 };
-
-// could I possibly remove that?
-class Shader;
-
-
 #endif // __GEOMETRY_H__

@@ -5,8 +5,6 @@
 #include "camera.cuh"
 #include "geometry.cuh"
 #include "shading.cuh"
-#include "cuPrintf.cu"
-using namespace std;
 
 #include <cstdio>
 
@@ -20,41 +18,7 @@ public:
   void setNode(Geometry *g, Shader *s) {geom = g; shader = s;}
 };
 
-__device__
-Color raytrace(Ray ray,
-               const Light& _light,
-               thrust::device_vector<Node>::iterator start,
-               thrust::device_vector<Node>::iterator end){
-  IntersectionData data;
-
-  Node value = *start;
-  Plane *pl = (Plane*) value.geom;
-  pl->intersect(ray, data);
-
-  for (thrust::device_vector<Node>::iterator iter = start;
-         iter != end; ++iter){
-    Node value = *iter;
-    bool intersect; Color shade;
-    switch(value.geom->t){
-      case PLANE: {
-        Plane* p = (Plane*) value.geom;
-        intersect = p->intersect(ray, data);
-        break;
-      }
-    };
-    if (intersect){
-      switch(value.shader->t){
-        case CHECKER: {
-          CheckerShader* s = (CheckerShader*) value.shader;
-          shade = s->shade(ray, _light, data);
-          return shade;
-        }
-      }
-    }
-  }
-
-  return Color(0, 0, 0);
-}
+SDL_Surface* screen = NULL;
 
 // makes scene == camera + geometries + shaders + lights
 void initializeScene(Camera*& _camera,
@@ -99,6 +63,43 @@ void initializeScene(Camera*& _camera,
   _nodes.push_back(floor);
 }
 
+__device__
+Color raytrace(Ray ray,
+               const Light& _light,
+               thrust::device_vector<Node>::iterator start,
+               thrust::device_vector<Node>::iterator end){
+  IntersectionData data;
+
+  Node value = *start;
+  Plane *pl = (Plane*) value.geom;
+  pl->intersect(ray, data);
+
+  for (thrust::device_vector<Node>::iterator iter = start;
+         iter != end; ++iter){
+    Node value = *iter;
+    bool intersect; Color shade;
+    switch(value.geom->t){
+      case PLANE: {
+        Plane* p = (Plane*) value.geom;
+        intersect = p->intersect(ray, data);
+        break;
+      }
+    };
+    if (intersect){
+      switch(value.shader->t){
+        case CHECKER: {
+          CheckerShader* s = (CheckerShader*) value.shader;
+          shade = s->shade(ray, _light, data);
+          return shade;
+        }
+      }
+    }
+  }
+
+  return Color(0, 0, 0);
+}
+
+
 __global__
 void renderScene(Camera* _camera,
                  Light* _light,
@@ -128,15 +129,9 @@ int main(int argc, char** argv) {
   const int __PIX = RESX;
   const int __SIZE = __PIX * __PIX;
   Color *host_vfb, *device_vfb;
-  SDL_Surface* screen = NULL;
 
   // get vfb on host
   host_vfb = (Color*)malloc(__SIZE * sizeof(Color));
-  for(int i = 0; i < __PIX; ++i){
-    for (int j = 0; j < __PIX; ++j)
-      host_vfb[i * __PIX + j] = Color (1, 0, 0);
-  }
-
   // get vfb on device
   cudaMalloc((void**)&device_vfb, __SIZE * sizeof(Color));
   cudaMemcpy(device_vfb,

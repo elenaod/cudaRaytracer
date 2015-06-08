@@ -3,7 +3,7 @@
 #include <stdio.h>
 
 __host__ __device__
-bool Plane::intersect(Ray ray, IntersectionData& data)
+bool Plane::intersect(Ray& ray, IntersectionData& data)
 {
   if (ray.dir.y >= 0) return false;
   else {
