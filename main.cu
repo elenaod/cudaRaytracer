@@ -26,20 +26,29 @@ void initializeScene(Camera*& _camera,
                      thrust::device_vector<Geometry*>& _geometries,
                      thrust::device_vector<Shader*>& _shaders,
                      thrust::device_vector<Node>& _nodes) {
-  _camera = new Camera;
-  _camera->yaw = 0;
-  _camera->pitch = -30;
-  _camera->roll = 0;
-  _camera->fov = 90;
-  _camera->aspect = 4. / 3.0;
-  _camera->pos = Vector(0,165,0);
+  Camera *host_camera = new Camera;
+  host_camera->yaw = 0;
+  host_camera->pitch = -30;
+  host_camera->roll = 0;
+  host_camera->fov = 90;
+  host_camera->aspect = 4. / 3.0;
+  host_camera->pos = Vector(0,165,0);
 
-  _camera->beginFrame();
+  host_camera->beginFrame();
+  cudaMalloc((void**)&_camera, sizeof(Camera));
+  cudaMemcpy(_camera, host_camera,
+             sizeof(Camera), cudaMemcpyHostToDevice);
+  free(host_camera);
 
-  _light = new Light;
-  _light->pos = Vector(-30, 100, 250);
-  _light->color = Color(1, 1, 1);
-  _light->power = 50000;
+  Light* host_light = new Light;
+  host_light->pos = Vector(-30, 100, 250);
+  host_light->color = Color(1, 1, 1);
+  host_light->power = 50000;
+
+  cudaMalloc((void**)&_light, sizeof(Light));
+  cudaMemcpy(_light, host_light,
+             sizeof(Light), cudaMemcpyHostToDevice);
+  free(host_light);
 
   Plane* plane = new Plane(2);
   Plane *dev_plane = 0;
@@ -151,20 +160,10 @@ int main(int argc, char** argv) {
   if (!initGraphics(&screen, RESX, RESY)) return -1;
   printf("Graphics initialized...\n");
   initializeScene(camera, pointLight, geometries, shaders, nodes);
-  printf("Scene initialized... camera = %d\n", camera);
 
   printf("Scene initialized... nodes.size: %llu\n", nodes.size());
   printf("Scene initialized... start - end = %llu\n",
            nodes.end() - nodes.begin());
-
-  Camera *device_camera = 0;
-  cudaMalloc((void**) &device_camera, sizeof(Camera));
-  cudaMemcpy(device_camera, camera,
-             sizeof(Camera), cudaMemcpyHostToDevice);
-  Light *device_light = 0;
-  cudaMalloc((void**) &device_light, sizeof(Light));
-  cudaMemcpy(device_light, pointLight,
-             sizeof(Light), cudaMemcpyHostToDevice);
 
   thrust::device_vector<Node>::iterator start = nodes.begin();
   thrust::device_vector<Node>::iterator end = nodes.end();
@@ -172,7 +171,7 @@ int main(int argc, char** argv) {
   printf("Scene initialized... start - end with vars = %llu\n",
            end - start);
 
-  renderScene<<<1, 16>>>(device_camera, device_light,
+  renderScene<<<1, 16>>>(camera, pointLight,
                         start, end, device_vfb);
 
   cudaMemcpy(host_vfb,
@@ -187,11 +186,10 @@ int main(int argc, char** argv) {
   // illegal memory access was encountered
   closeGraphics();
   printf("All done, only destructors remain...\n");
-  // aand, free!
-  free(device_camera);
-  delete camera;
+  // aand, free! (but not the vectors, let them leak for now...)
+  // I'll fix them later, hopefully
+  cudaFree(camera);
   free(host_vfb);
   cudaFree(device_vfb);
-  // well, lots more to free, technically!
   return 0;
 }
