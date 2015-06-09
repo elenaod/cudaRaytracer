@@ -12,25 +12,32 @@ struct IntersectionData {
 };
 
 enum geometry_type {
-  GENERIC, PLANE
+  GENERIC, PLANE, SPHERE
 };
 
 class Geometry {
   public:
     geometry_type t;
-
-    Geometry() {}
-    ~Geometry() {}
 };
 
 class Plane : public Geometry{
-  public:
     int y;
-
+  public:
     Plane() {y = 0; t = PLANE;}
     Plane(int _y) {y = _y; t = PLANE;}
 
     __host__ __device__
-    bool intersect (Ray& ray, IntersectionData& data);
+    bool intersect (const Ray& ray, IntersectionData& data);
+};
+
+class Sphere : public Geometry{
+    Vector center;
+    double radius;
+  public:
+    Sphere() {t = SPHERE;}
+    Sphere(const Vector& O, double r) : center(O), radius(r) {t = SPHERE;}
+
+    __host__ __device__
+    bool intersect(const Ray& ray, IntersectionData& data);
 };
 #endif // __GEOMETRY_H__

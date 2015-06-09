@@ -9,32 +9,42 @@
 // need the inheritance and the virtual methods
 
 enum shader_type {
-  GENERIC_SHADER, CHECKER
+  GENERIC_SHADER, CHECKER, PHONG, LAMBERT
 };
 
 class Shader {
-public:
+protected:
   Color color;
+public:
   shader_type t;
 
+  Shader() {}
   Shader(const Color& color);
   ~Shader() {}
-
-  __host__ __device__
-  Color shade(Ray& ray, const Light& light,
-              const IntersectionData& data) {return Color(0,0,0);}
 };
 
 class CheckerShader: public Shader {
-public:
   Color color2;
   double size;
+public:
   CheckerShader(const Color& c1, const Color& c2, double size = 1);
 
   __host__ __device__
-  Color shade(Ray& ray,
+  Color shade(const Ray& ray,
               const Light& light,
               const IntersectionData& data);
 };
 
+class Phong: public Shader {
+    double exponent;
+    float strength;
+  public:
+    Phong() { t = PHONG; }
+    Phong(const Color& diffuse, double e = 16.0, float str = 1.0);
+
+    __host__ __device__
+    Color shade(const Ray& ray,
+                const Light& light,
+                const IntersectionData& data);
+};
 #endif // __SHADING_H__

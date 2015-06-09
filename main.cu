@@ -1,119 +1,67 @@
 #include <SDL/SDL.h>
-#include <thrust/device_vector.h>
 #include "sdl.cuh"
-#include "matrix.cuh"
-#include "camera.cuh"
-#include "geometry.cuh"
-#include "shading.cuh"
-
+#include "init.cuh"
 #include <cstdio>
 
-struct Node {
-public:
-  Geometry* geom;
-  Shader* shader;
 
-  Node() {}
-  Node(Geometry* g, Shader* s) { geom = g; shader = s; }
-  void setNode(Geometry *g, Shader *s) {geom = g; shader = s;}
-};
+typedef thrust::device_vector<Node>::iterator iterator;
+typedef thrust::device_vector<Geometry*>::iterator geom_iterator;
+typedef thrust::device_vector<Shader*>::iterator shader_iterator;
 
 SDL_Surface* screen = NULL;
+/*
+  those are read-only device variables which are set in main depending on the input data (screen res, etc), and are used in renderScene
+*/
+__constant__ int bucketSize = 160, bucketsX = 4, bucketsY = 4;
 
-// makes scene == camera + geometries + shaders + lights
-void initializeScene(Camera*& _camera,
-                     Light*& _light,
-                     thrust::device_vector<Geometry*>& _geometries,
-                     thrust::device_vector<Shader*>& _shaders,
-                     thrust::device_vector<Node>& _nodes) {
-  Camera *host_camera = new Camera;
-  host_camera->yaw = 0;
-  host_camera->pitch = -30;
-  host_camera->roll = 0;
-  host_camera->fov = 90;
-  host_camera->aspect = 4. / 3.0;
-  host_camera->pos = Vector(0,165,0);
-
-  host_camera->beginFrame();
-  cudaMalloc((void**)&_camera, sizeof(Camera));
-  cudaMemcpy(_camera, host_camera,
-             sizeof(Camera), cudaMemcpyHostToDevice);
-  free(host_camera);
-
-  Light* host_light = new Light;
-  host_light->pos = Vector(-30, 100, 250);
-  host_light->color = Color(1, 1, 1);
-  host_light->power = 50000;
-
-  cudaMalloc((void**)&_light, sizeof(Light));
-  cudaMemcpy(_light, host_light,
-             sizeof(Light), cudaMemcpyHostToDevice);
-  free(host_light);
-
-  Plane* plane = new Plane(2);
-  Plane *dev_plane = 0;
-  cudaMalloc((void**)&dev_plane, sizeof(Plane));
-  cudaMemcpy(dev_plane, plane, sizeof(Plane), cudaMemcpyHostToDevice);
-  free(plane);
-  _geometries.push_back(dev_plane);
-
-  CheckerShader* checker = new CheckerShader(Color(1, 1, 1),
-                                             Color(0, 0, 0), 50);
-  CheckerShader* dev_checker = 0;
-  cudaMalloc((void**)&dev_checker, sizeof(CheckerShader));
-  cudaMemcpy(dev_checker, checker,
-             sizeof(CheckerShader), 
-             cudaMemcpyHostToDevice);
-  free(checker);
-  _shaders.push_back(dev_checker);
-
-  Node floor;
-  floor.geom = dev_plane; floor.shader = dev_checker;
-  _nodes.push_back(floor);
+__device__
+bool intersect(Geometry* geom, const Ray& ray, IntersectionData& data){
+    switch(geom->t){
+      case PLANE: {
+        Plane *p = (Plane*) geom;
+        return p->intersect(ray, data);
+      }
+      case SPHERE: {
+        Sphere *s = (Sphere*) geom;
+        return s->intersect(ray, data);
+      }
+    };
 }
 
 __device__
-Color raytrace(Ray ray,
-               const Light& _light,
-               thrust::device_vector<Node>::iterator start,
-               thrust::device_vector<Node>::iterator end){
+Color shade(Shader* shader, const Ray& ray, const Light& light,
+            const IntersectionData& data){
+  switch(shader->t){
+    case CHECKER: {
+      CheckerShader* s = (CheckerShader*) shader;
+      return s->shade(ray, light, data);
+    }
+    case PHONG: {
+      Phong *ph = (Phong*) shader;
+      return ph->shade(ray, light, data);
+    }
+  }
+}
+
+__device__
+Color raytrace(const Ray& ray, const Light& _light,
+               iterator start, iterator end){
   IntersectionData data;
 
-  Node value = *start;
-  Plane *pl = (Plane*) value.geom;
-  pl->intersect(ray, data);
-
-  for (thrust::device_vector<Node>::iterator iter = start;
-         iter != end; ++iter){
+  for (iterator iter = start; iter != end; ++iter){
     Node value = *iter;
-    bool intersect; Color shade;
-    switch(value.geom->t){
-      case PLANE: {
-        Plane* p = (Plane*) value.geom;
-        intersect = p->intersect(ray, data);
-        break;
-      }
-    };
-    if (intersect){
-      switch(value.shader->t){
-        case CHECKER: {
-          CheckerShader* s = (CheckerShader*) value.shader;
-          shade = s->shade(ray, _light, data);
-          return shade;
-        }
-      }
+
+    if(intersect(value.geom, ray, data)){
+      return shade(value.shader, ray, _light, data);
     }
   }
 
   return Color(0, 0, 0);
 }
 
-
 __global__
-void renderScene(Camera* _camera,
-                 Light* _light,
-                 thrust::device_vector<Node>::iterator start,
-                 thrust::device_vector<Node>::iterator end,
+void renderScene(const Camera* _camera, const Light* _light,
+                 iterator start, iterator end,
                  Color* buffer) {
   // calculate thread idx
   int idx_thrd_x = blockIdx.x * blockDim.x + threadIdx.x;
@@ -123,72 +71,74 @@ void renderScene(Camera* _camera,
 
   // calculate coordinates of pixel we're painting
   // remove constants
-  int x = idx_thread / 4;
-  int y = idx_thread % 4;
-  for(int i = x * 160; i < (x + 1) * 160; ++i)
-    for(int j = y * 160; j < (y + 1) * 160; ++j){
+  int x = idx_thread / bucketsX;
+  int y = idx_thread % bucketsY;
+  for(int i = x * bucketSize; i < (x + 1) * bucketSize; ++i)
+    for(int j = y * bucketSize; j < (y + 1) * bucketSize; ++j){
     Ray ray = _camera->getScreenRay(i, j);
-    buffer[j * RESX + i] = raytrace(ray, *_light, start, end);
+    buffer[j * VFB_MAX_SIZE + i] = raytrace(ray, *_light, start, end);
   }
-
-  printf("renderScene::Scene rendered for (%d, %d)\n", x, y);
 }
 
 int main(int argc, char** argv) {
-  const int __PIX = RESX;
-  const int __SIZE = __PIX * __PIX;
+  clock_t init_start, init_end, draw_start, draw_end;
+  float time;
+  init_start = clock();
+
+  const int __SIZE = VFB_MAX_SIZE * VFB_MAX_SIZE;
   Color *host_vfb, *device_vfb;
 
-  // get vfb on host
   host_vfb = (Color*)malloc(__SIZE * sizeof(Color));
-  // get vfb on device
   cudaMalloc((void**)&device_vfb, __SIZE * sizeof(Color));
   cudaMemcpy(device_vfb,
              host_vfb,
              __SIZE * sizeof(Color),
              cudaMemcpyHostToDevice);
-  printf("Program start...\n");
 
-  // now those are no the host, originally!
   Camera *camera = 0;
   Light *pointLight = 0;
   thrust::device_vector<Geometry*> geometries;
   thrust::device_vector<Shader*> shaders;
   thrust::device_vector<Node> nodes;
 
-  printf("Variables declared...\n");
   if (!initGraphics(&screen, RESX, RESY)) return -1;
-  printf("Graphics initialized...\n");
   initializeScene(camera, pointLight, geometries, shaders, nodes);
 
-  printf("Scene initialized... nodes.size: %llu\n", nodes.size());
-  printf("Scene initialized... start - end = %llu\n",
-           nodes.end() - nodes.begin());
+  iterator start = nodes.begin();
+  iterator end = nodes.end();
 
-  thrust::device_vector<Node>::iterator start = nodes.begin();
-  thrust::device_vector<Node>::iterator end = nodes.end();
-
-  printf("Scene initialized... start - end with vars = %llu\n",
-           end - start);
-
+  init_end = clock();
+  time = ((float)init_end - (float)init_start) / CLOCKS_PER_SEC;
+  printf("Sequential: %f s\n", time);
+  draw_start = clock();
   renderScene<<<1, 16>>>(camera, pointLight,
                         start, end, device_vfb);
+  cudaError_t cudaerr = cudaDeviceSynchronize();
+  draw_end = clock();
+  time = ((float) draw_end - (float)draw_start) / CLOCKS_PER_SEC;
+  printf("Parallel on N threads: %f s\n", time);
 
   cudaMemcpy(host_vfb,
              device_vfb,
              __SIZE * sizeof(Color),
              cudaMemcpyDeviceToHost);
-  printf("Scene rendered... \n");
   displayVFB(screen, host_vfb);
-  // remove so we can time
   waitForUserExit();
-  printf("Closing graphics...\n");
-  // illegal memory access was encountered
   closeGraphics();
-  printf("All done, only destructors remain...\n");
-  // aand, free! (but not the vectors, let them leak for now...)
-  // I'll fix them later, hopefully
+
+  // freeMemory() function:
   cudaFree(camera);
+  cudaFree(pointLight);
+  for(geom_iterator iter = geometries.begin();
+      iter != geometries.end(); ++iter){
+    Geometry* val = *iter;
+    cudaFree(val);
+  }
+  for(shader_iterator iter = shaders.begin();
+      iter != shaders.end(); ++iter){
+    Shader* val = *iter;
+    cudaFree(val);
+  }
   free(host_vfb);
   cudaFree(device_vfb);
   return 0;

@@ -2,9 +2,8 @@
 #include <stdio.h>
 #include "sdl.cuh"
 
-/// try to create a frame window with the given dimensions
-bool initGraphics(SDL_Surface** _screen, int frameWidth, int frameHeight)
-{
+bool initGraphics(SDL_Surface** _screen,
+                 int frameWidth, int frameHeight) {
   if (SDL_Init(SDL_INIT_VIDEO) < 0) {
     printf("Cannot initialize SDL: %s\n", SDL_GetError());
     return false;
@@ -18,7 +17,6 @@ bool initGraphics(SDL_Surface** _screen, int frameWidth, int frameHeight)
   return true;
 }
 
-/// closes SDL graphics
 void closeGraphics(void)
 {
   SDL_Quit();
@@ -34,8 +32,7 @@ void displayVFB(SDL_Surface* _screen, Color* vfb)
     Uint32 *row = (Uint32*) ((Uint8*)
                            _screen->pixels + y * _screen->pitch);
     for (int x = 0; x < _screen->w; x++)
-      // it was VFB_MAX_SIZE here
-      row[x] = vfb[y * RESX + x].toRGB32(rs, gs, bs);
+      row[x] = vfb[y * VFB_MAX_SIZE + x].toRGB32(rs, gs, bs);
   }
   SDL_Flip(_screen);
 }
@@ -66,18 +63,14 @@ void waitForUserExit(void)
   }
 }
 
-/// returns the frame width
-/*__device__
 int frameWidth(SDL_Surface* screen)
 {
   if (screen) return screen->w;
   return 0;
 }
 
-/// returns the frame height
-__device__
 int frameHeight(SDL_Surface* screen)
 {
   if (screen) return screen->h;
   return 0;
-}*/
+}
