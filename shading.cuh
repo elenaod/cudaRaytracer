@@ -26,13 +26,16 @@ public:
 class CheckerShader: public Shader {
   Color color2;
   double size;
+  int direction;
 public:
+  CheckerShader() {t = CHECKER; direction = 1;}
   CheckerShader(const Color& c1, const Color& c2, double size = 1);
 
   __host__ __device__
   Color shade(const Ray& ray,
               const Light& light,
               const IntersectionData& data);
+  void shiftColors();
 };
 
 class Phong: public Shader {
@@ -45,6 +48,7 @@ class Phong: public Shader {
     __host__ __device__
     Color shade(const Ray& ray,
                 const Light& light,
+                const bool& visibility,
                 const IntersectionData& data);
 };
 #endif // __SHADING_H__

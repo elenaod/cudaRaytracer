@@ -101,4 +101,18 @@ inline Vector operator / (const Vector& a, double div) {
   return Vector(a.x * coeff, a.y * coeff, a.z * coeff);
 }
 
+__host__ __device__
+inline Vector reflect(const Vector& ray, const Vector& norm)
+{
+  Vector result = ray - 2 * dot(ray, norm) * norm;
+  result.normalize();
+  return result;
+}
+
+__host__ __device__
+inline Vector faceforward(const Vector& ray, const Vector& norm)
+{
+  if (ray * norm < 0) return norm;
+  else return -norm;
+}
 #endif // __VECTOR3D_H__

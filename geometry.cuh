@@ -32,12 +32,13 @@ class Plane : public Geometry{
 
 class Sphere : public Geometry{
     Vector center;
-    double radius;
+    double R;
   public:
     Sphere() {t = SPHERE;}
-    Sphere(const Vector& O, double r) : center(O), radius(r) {t = SPHERE;}
+    Sphere(const Vector& O, double r) : center(O), R(r) {t = SPHERE;}
 
     __host__ __device__
     bool intersect(const Ray& ray, IntersectionData& data);
 };
+
 #endif // __GEOMETRY_H__

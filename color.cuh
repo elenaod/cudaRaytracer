@@ -101,4 +101,13 @@ inline Color operator / (const Color& a, float div) {
   return Color(a.r / div, a.g / div, a.b / div);
 }
 
+__device__
+inline bool tooDifferent(const Color& a, const Color& b)
+{
+  const float THRESHOLD = 0.1;
+  return (fabs(a.r - b.r) > THRESHOLD ||
+          fabs(a.g - b.g) > THRESHOLD ||
+          fabs(a.b - b.b) > THRESHOLD);
+}
+
 #endif // __COLOR_H__
