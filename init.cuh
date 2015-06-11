@@ -26,6 +26,11 @@ typedef thrust::device_vector<Node>::iterator iterator;
 typedef thrust::device_vector<Geometry*>::iterator geom_iterator;
 typedef thrust::device_vector<Shader*>::iterator shader_iterator;
 
+struct SceneObjects {
+  Light *light;
+  iterator start, end;
+};
+
 struct Scene {
   Camera* camera;
   Light* light;
@@ -36,6 +41,7 @@ struct Scene {
   thrust::device_vector<Geometry*> geometries;
   thrust::device_vector<Shader*> shaders;
 
+  void readFromFile(const char* fileName);
   void initialize();
   void cleanUp();
 };

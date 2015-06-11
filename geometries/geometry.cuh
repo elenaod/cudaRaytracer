@@ -34,4 +34,6 @@ class Sphere : public Geometry{
     bool intersect(const Ray& ray, IntersectionData& data);
 };
 
+__device__
+bool intersect(Geometry* geom, const Ray& ray, IntersectionData& data);
 #endif // __GEOMETRY_H__

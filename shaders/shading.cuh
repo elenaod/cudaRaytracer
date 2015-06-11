@@ -51,4 +51,8 @@ class Phong: public Shader {
                 const bool& visibility,
                 const IntersectionData& data);
 };
+
+__device__
+Color shade(Shader* shader, const Ray& ray, const Light& light,
+            const bool& visibility, const IntersectionData& data);
 #endif // __SHADING_H__

@@ -1,36 +1,17 @@
 #include <kernels.cuh>
+#include <cstdio>
 
-__constant__ int bucketSizeX =128, bucketSizeY = 96,
-                 bucketsX = 5, bucketsY = 5;
+__constant__ unsigned bucketSizeX, bucketSizeY;
+__constant__ unsigned bucketsX, bucketsY;
 
-__device__
-bool intersect(Geometry* geom, const Ray& ray, IntersectionData& data){
-  switch(geom->t){
-    case PLANE: {
-      Plane *p = (Plane*) geom;
-      return p->intersect(ray, data);
-    }
-    case SPHERE: {
-      Sphere *s = (Sphere*) geom;
-      return s->intersect(ray, data);
-    }
-  };
-  return 0;
-}
+void setBuckets(const int& threadCount, const int& blocks){
+  int rows = blocks, columns = threadCount / blocks;
+  int sizeX = RESX / rows, sizeY = RESY / columns;
 
-__device__
-Color shade(Shader* shader, const Ray& ray, const Light& light,
-            const bool& visibility, const IntersectionData& data){
-  switch(shader->t){
-    case CHECKER: {
-      CheckerShader* s = (CheckerShader*) shader;
-      return s->shade(ray, light, data);
-    }
-    case PHONG: {
-      Phong *ph = (Phong*) shader;
-      return ph->shade(ray, light, visibility, data);
-    }
-  }
+  cudaMemcpyToSymbol(bucketsX, &rows, sizeof(unsigned));
+  cudaMemcpyToSymbol(bucketsY, &columns, sizeof(unsigned));
+  cudaMemcpyToSymbol(bucketSizeX, &sizeX, sizeof(unsigned));
+  cudaMemcpyToSymbol(bucketSizeY, &sizeY, sizeof(unsigned));
 }
 
 __device__
@@ -59,7 +40,8 @@ Color raytrace(const Ray& ray, const Light& _light,
   IntersectionData data;
   Shader* shader = 0;
 
-  data.dist = 1e99;
+  // there's a constant 'oo' in utils/constants... couldn't resist
+  data.dist = oo;
   for (iterator iter = start; iter != end; ++iter){
     Node value = *iter;
 
@@ -77,8 +59,8 @@ Color raytrace(const Ray& ray, const Light& _light,
   return Color(0, 0, 0);
 }
 
-__global__
-void renderScene(Scene* scene, Color* buffer) {
+__device__
+int2 calculateCoordinates(){
   // calculate thread idx
   int idx_thrd_x = blockIdx.x * blockDim.x + threadIdx.x;
   int idx_thrd_y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -87,10 +69,17 @@ void renderScene(Scene* scene, Color* buffer) {
 
   // calculate coordinates of pixel we're painting
   // remove constants
-  int x = idx_thread / bucketsX;
-  int y = idx_thread % bucketsY;
-  for(int i = x * bucketSizeX; i < (x + 1) * bucketSizeX; ++i)
-    for(int j = y * bucketSizeY; j < (y + 1) * bucketSizeY; ++j){
+  int x = idx_thread % bucketsX;
+  int y = idx_thread / bucketsX;
+  return make_int2(x, y);
+}
+
+__global__
+void renderScene(Scene* scene, Color* buffer) {
+  int2 c = calculateCoordinates();
+
+  for(int i = c.x * bucketSizeX; i < (c.x + 1) * bucketSizeX; ++i)
+    for(int j = c.y * bucketSizeY; j < (c.y + 1) * bucketSizeY; ++j){
     Ray ray = scene->camera->getScreenRay(i, j);
     buffer[j * VFB_MAX_SIZE + i] = raytrace(ray, *scene->light,
                                             scene->start, scene->end);
@@ -99,29 +88,20 @@ void renderScene(Scene* scene, Color* buffer) {
 
 __global__
 void findAA(bool* needsAA, Color* buffer){
-  // calculate thread idx
-  int idx_thrd_x = blockIdx.x * blockDim.x + threadIdx.x;
-  int idx_thrd_y = blockIdx.y * blockDim.y + threadIdx.y;
-  int grid_width = gridDim.x * blockDim.x;
-  int idx_thread = idx_thrd_y * grid_width + idx_thrd_x;
+  int2 c = calculateCoordinates();
 
-  // calculate coordinates of pixel we're painting
-  // remove constants
-  int x = idx_thread / bucketsX;
-  int y = idx_thread % bucketsY;
-
-  for (int i = x * bucketSizeX; i < (x + 1) * bucketSizeX; ++i) {
-    for (int j = y * bucketSizeY; j < (y + 1) * bucketSizeY; ++j) {
+  for (int i = c.x * bucketSizeX; i < (c.x + 1) * bucketSizeX; ++i) {
+    for (int j = c.y * bucketSizeY; j < (c.y + 1) * bucketSizeY; ++j) {
       Color neighs[5];
       neighs[0] = buffer[j * VFB_MAX_SIZE + i];
 
       neighs[1] = buffer[j * VFB_MAX_SIZE + (i > 0 ? i - 1 : i)];
       neighs[2] = buffer[j * VFB_MAX_SIZE + 
-                  (i + 1 < (x + 1) * bucketSizeX ? i + 1 : i)];
+                  (i + 1 < (c.x + 1) * bucketSizeX ? i + 1 : i)];
 
       neighs[3] = buffer[(j > 0 ? j - 1 : j) * VFB_MAX_SIZE + i];
       neighs[4] = buffer[
-          (j + 1 < (y + 1) * bucketSizeY ? j + 1 : j) *VFB_MAX_SIZE + i];
+          (j + 1 < (c.y + 1) * bucketSizeY ? j + 1 : j) *VFB_MAX_SIZE + i];
 
       Color average(0, 0, 0);
 
@@ -141,17 +121,7 @@ void findAA(bool* needsAA, Color* buffer){
 
 __global__
 void antialias(Scene* scene, bool* needsAA, Color* buffer){
-  // calculate thread idx
-  int idx_thrd_x = blockIdx.x * blockDim.x + threadIdx.x;
-  int idx_thrd_y = blockIdx.y * blockDim.y + threadIdx.y;
-  int grid_width = gridDim.x * blockDim.x;
-  int idx_thread = idx_thrd_y * grid_width + idx_thrd_x;
-
-  // calculate coordinates of pixel we're painting
-  // remove constants
-  int x = idx_thread / bucketsX;
-  int y = idx_thread % bucketsY;
-
+  int2 c = calculateCoordinates();
   const double kernel[5][2] = {
     { 0, 0 },
     { 0.3, 0.3 },
@@ -159,8 +129,8 @@ void antialias(Scene* scene, bool* needsAA, Color* buffer){
     { 0, 0.6 },
     { 0.6, 0.6 }};
 
-  for (int i = x * bucketSizeX; i < (x + 1) * bucketSizeX; ++i) {
-    for (int j = y * bucketSizeY; j < (y + 1) * bucketSizeY; ++j) {
+  for (int i = c.x * bucketSizeX; i < (c.x + 1) * bucketSizeX; ++i) {
+    for (int j = c.y * bucketSizeY; j < (c.y + 1) * bucketSizeY; ++j) {
       if (needsAA[j * VFB_MAX_SIZE + i]) {
         Color result = buffer[j * VFB_MAX_SIZE + i]; 
         for (int k = 1; k < 5; k++){

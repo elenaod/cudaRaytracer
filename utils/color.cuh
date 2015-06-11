@@ -112,4 +112,13 @@ inline bool tooDifferent(const Color& a, const Color& b)
           fabs(a.b - b.b) > THRESHOLD);
 }
 
+inline void shiftColor(Color& c, int3& dirs, float3& shift){
+    c += Color (shift.x*dirs.x, shift.y*dirs.y, shift.z*dirs.z);
+    if (c.r > 1) { c.r = 1; dirs.x = -1;}
+    else if (c.r < 0){ c.r = 0; dirs.x = 1;}
+    if (c.b > 1) { c.b = 1; dirs.z = -1;}
+    else if (c.b < 0){ c.b = 0; dirs.z = 1;}
+    if (c.g > 1) { c.g = 1; dirs.y = -1;}
+    else if (c.g < 0){ c.g = 0; dirs.y = 1;}
+}
 #endif // __COLOR_H__

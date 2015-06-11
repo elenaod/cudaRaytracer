@@ -3,22 +3,32 @@
 #include <kernels.cuh>
 #include <cstdio>
 
+const int __SIZE = VFB_MAX_SIZE * VFB_MAX_SIZE;
 SDL_Surface* screen = NULL;
 
 int main(int argc, char** argv) {
   clock_t init_start, init_end, draw_start, draw_end;
   float time;
-  init_start = clock();
+  unsigned threadCount, numBlocks;
 
-  const int __SIZE = VFB_MAX_SIZE * VFB_MAX_SIZE;
+  if (argc < 3) {
+    printf("You need to specify the number of threads\n");
+    printf("raytracer [threadCount] [numBlocks], by default numBlocks == 1");
+  }
+  else {
+    threadCount = atoi(argv[1]);
+    numBlocks = atoi(argv[2]);
+  }
+  
+  setBuckets(threadCount, numBlocks);
+  init_start = clock();
   Color *host_vfb, *device_vfb;
-  bool *needsAA;
   host_vfb = (Color*)malloc(__SIZE * sizeof(Color));
   cudaMalloc((void**)&device_vfb, __SIZE * sizeof(Color));
-  cudaMemcpy(device_vfb,
-             host_vfb,
-             __SIZE * sizeof(Color),
+  cudaMemcpy(device_vfb, host_vfb, __SIZE * sizeof(Color),
              cudaMemcpyHostToDevice);
+
+  bool *needsAA;
   cudaMalloc((void**)&needsAA, __SIZE * sizeof(bool));
 
   Scene *scene = new Scene, *dev_scene;
@@ -30,22 +40,25 @@ int main(int argc, char** argv) {
   init_end = clock();
   time = ((float)init_end - (float)init_start) / CLOCKS_PER_SEC;
   printf("Sequential: %f s\n", time);
+
   draw_start = clock();
-  renderScene<<<1, 25>>>(dev_scene, device_vfb);
-  findAA<<<1, 25>>>(needsAA, device_vfb);
-  antialias<<<1, 25>>>(dev_scene, needsAA, device_vfb);
+  renderScene<<<1, threadCount>>>(dev_scene, device_vfb);
+  findAA<<<1, threadCount>>>(needsAA, device_vfb);
+  antialias<<<1, threadCount>>>(dev_scene, needsAA, device_vfb);
   cudaError_t cudaerr = cudaDeviceSynchronize();
   draw_end = clock();
   time = ((float) draw_end - (float)draw_start) / CLOCKS_PER_SEC;
-  printf("Parallel on N threads: %f s\n", time);
+  printf("Parallel on %d threads: %f s\n", threadCount, time);
 
-  cudaMemcpy(host_vfb,
-            device_vfb,
-             __SIZE * sizeof(Color),
+  cudaMemcpy(host_vfb, device_vfb, __SIZE * sizeof(Color),
              cudaMemcpyDeviceToHost);
   displayVFB(screen, host_vfb);
-  SDL_SaveBMP(screen, "output.bmp");
+  if (argc >= 4) {
+    SDL_SaveBMP(screen, argv[3]);
+  }
+
   waitForUserExit();
+
   closeGraphics();
 
   scene->cleanUp();

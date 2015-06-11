@@ -1,7 +1,6 @@
 #include <init.cuh>
 
-extern __constant__ int bucketSizeX, bucketSizeY,
-                        bucketsX, bucketsY;
+void setBuckets(const int& threadCount, const int& blocks);
 
 __global__
 void renderScene(Scene* scene, Color* buffer);
