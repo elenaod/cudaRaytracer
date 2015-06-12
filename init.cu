@@ -10,6 +10,9 @@
   (lihttp://stackoverflow.com/questions/7146719/identifier-string-undefinedght: color.r, color.g, color.b, power, pos.x, pos.y, pos.z)
   (node: geometryIndex, shaderIndex)
 */
+
+// this goes to utils
+// ideally, find a parsing library 
 bool getLineFrom(int f, char* line){
   char c; int i = 0;
   while(read(f, &c, 1) > 0){
@@ -28,6 +31,7 @@ void Scene::readFromFile(const char* fileName){
   int sceneDesc = open(fileName, O_RDONLY);
   char l [1024];
   char object[10];
+
   while(getLineFrom(sceneDesc, l)){
     sscanf(l, "%s", object);
     printf("Read (%s) is %s", l, object);
@@ -39,13 +43,14 @@ void Scene::readFromFile(const char* fileName){
         printf(" is geometry::plane\n");
         int y;
         sscanf(l, "%s%s%d",object, gtype, &y);
+        printf(" y is %d\n", y);
         Plane *p = new Plane (y);
         Plane *dev_p = 0;
         cudaMalloc((void**)&dev_p, sizeof(Plane));
         cudaMemcpy(dev_p, p, sizeof(Plane), cudaMemcpyHostToDevice);
-        printf("\ndev_p::%d\n", dev_p);
-        delete p;
+        printf("\ndev_p = %d\n", dev_p);
         geometries.push_back(dev_p);
+        delete p;
       }
       else if (strcmp(gtype, "sphere") == 0){
         printf(" is geometry::sphere\n");
