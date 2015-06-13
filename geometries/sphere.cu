@@ -15,7 +15,7 @@ Sphere::Sphere(const char* str) :
 }
 
 __host__ __device__
-bool Sphere::intersect(const Ray& ray, IntersectionData& data) {
+bool Sphere::intersect(const Ray& ray, IntersectionData& data) const{
   Vector H = ray.start - center;
 
   double A = ray.dir.lengthSqr();

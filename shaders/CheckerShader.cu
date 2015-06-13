@@ -3,15 +3,21 @@
 
 CheckerShader::CheckerShader(const Color& c1,
                              const Color& c2,
-                             double size) : Shader(c1) {
-  color2 = c2;
+                             double size) : Shader(CHECKER) {
+  color = c1; color2 = c2;
   this->size = size;
-  t = CHECKER;
+}
+
+CheckerShader::CheckerShader(const char* str) :
+  Shader(CHECKER) {
+  sscanf(str, "%f%f%f%f%f%f%lf",
+               &color.r, &color.g, &color.b,
+               &color2.r, &color2.g, &color2.b, &size);
 }
 
 __host__ __device__
 Color CheckerShader::shade(const Ray& ray, const Light& light,
-                           const IntersectionData& data) {
+                           const IntersectionData& data) const{
   // example - u = 150, -230
   // -> 1, -3
   int x = floor(data.u / size);

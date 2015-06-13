@@ -15,11 +15,15 @@ enum shader_type {
 class Shader {
 protected:
   Color color;
-public:
   shader_type t;
 
-  Shader() {}
-  Shader(const Color& color) {this->color = color;}
+public:
+  Shader() { t = GENERIC_SHADER; }
+  Shader(shader_type type) { t = type; }
+
+  __device__
+  inline shader_type getType() const {return t;}
+
   ~Shader() {}
 };
 
@@ -27,28 +31,28 @@ class CheckerShader: public Shader {
   Color color2;
 public:
   double size;
-  CheckerShader() {t = CHECKER;}
+  CheckerShader();
   CheckerShader(const Color& c1, const Color& c2, double size = 1);
-  CheckerShader(const char* str) {};
+  CheckerShader(const char* str);
 
   __host__ __device__
   Color shade(const Ray& ray,
               const Light& light,
-              const IntersectionData& data);
+              const IntersectionData& data) const;
 };
 
 class Phong: public Shader {
     double exponent;
     float strength;
   public:
-    Phong() { t = PHONG; }
-    Phong(const Color& diffuse, double e = 16.0, float str = 1.0) {};
-    Phong(const char* str) {};
+    Phong(const Color& diffuse, double e = 16.0, float str = 1.0);
+    Phong(const char* str);
+
     __host__ __device__
     Color shade(const Ray& ray,
                 const Light& light,
                 const bool& visibility,
-                const IntersectionData& data);
+                const IntersectionData& data) const;
 };
 
 #endif // __SHADING_H__

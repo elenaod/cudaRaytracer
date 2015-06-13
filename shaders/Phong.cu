@@ -1,9 +1,19 @@
 #include <shaders/shading.cuh>
 
+Phong::Phong(const Color& diffuse, double e, float str) :
+  Shader(PHONG) {
+  color = diffuse; exponent = e; strength = str;
+}
+
+Phong::Phong(const char* str) : Shader(PHONG) {
+  sscanf(str, "%f%f%f%lf%f",
+              &color.r, &color.g, &color.b,
+              &exponent, &strength);
+}
 __host__ __device__
 Color Phong::shade(const Ray& ray, const Light& light,
                    const bool& visibility,
-                   const IntersectionData& data){
+                   const IntersectionData& data) const{
   // turn the normal vector towards us (if needed):
   Vector N = faceforward(ray.dir, data.normal);
 
@@ -22,7 +32,7 @@ Color Phong::shade(const Ray& ray, const Light& light,
     double cosTheta = dot(lightDir, N);
 
     // baseLight is the light that "arrives" to the intersection point
-    Color baseLight = light.color * light.power / 
+    Color baseLight = light.color * light.power /
                       (data.p - light.pos).lengthSqr();
 
     lightContrib += baseLight * cosTheta; // lambertian contribution

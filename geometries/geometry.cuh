@@ -9,21 +9,23 @@ enum geometry_type {
 };
 
 class Geometry {
-  public:
     geometry_type t;
-
+  public:
     Geometry() {t = GENERIC;}
     Geometry(geometry_type type) {t = type;}
+
+    __device__
+    inline geometry_type getType() const {return t;}
 };
 
 class Plane : public Geometry{
-  public:
     int y;
+  public:
     Plane(int _y);
     Plane(const char* str);
 
     __host__ __device__
-    bool intersect (const Ray& ray, IntersectionData& data);
+    bool intersect (const Ray& ray, IntersectionData& data) const;
 };
 
 class Sphere : public Geometry{
@@ -34,9 +36,7 @@ class Sphere : public Geometry{
     Sphere(const char* str);
 
     __host__ __device__
-    bool intersect(const Ray& ray, IntersectionData& data);
+    bool intersect(const Ray& ray, IntersectionData& data) const;
 };
 
-__device__
-bool intersect(Geometry* geom, const Ray& ray, IntersectionData& data);
 #endif // __GEOMETRY_H__

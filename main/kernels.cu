@@ -16,7 +16,7 @@ void setBuckets(const int& threadCount, const int& blocks){
 
 __device__
 bool intersect(Geometry* geom, const Ray& ray, IntersectionData& data){
-  switch(geom->t){
+  switch(geom->getType()){
     case PLANE: {
       Plane *p = (Plane*) geom;
       return p->intersect(ray, data);
@@ -32,7 +32,7 @@ bool intersect(Geometry* geom, const Ray& ray, IntersectionData& data){
 __device__
 Color shade(Shader* shader, const Ray& ray, const Light& light,
             const bool& visibility, const IntersectionData& data){
-  switch(shader->t){
+  switch(shader->getType()){
     case CHECKER: {
       CheckerShader* s = (CheckerShader*) shader;
       Color c = s->shade(ray, light, data);

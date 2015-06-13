@@ -6,36 +6,32 @@
 const int __SIZE = VFB_MAX_SIZE * VFB_MAX_SIZE;
 SDL_Surface* screen = NULL;
 
-__global__
-void showObjects(Scene* scene){
-  printf("Showing objects\n");
-  printf("camera pos: %f,%f,%f\n", scene->camera->pos.x, scene->camera->pos.y, scene->camera->pos.z);
-  printf("light pos: %f, %f, %f\n", scene->light->pos.x,
-           scene->light->pos.y, scene->light->pos.z);
-  Node value = *(scene->start);
-  Plane* pl = (Plane*)value.geom;
-  printf("value.geom: y = %d\n", pl->y);
-  CheckerShader* checker = (CheckerShader*)value.shader;
-  printf("value.shader: size = %d, %lf\n", checker, checker->size);
-}
-
 int main(int argc, char** argv) {
   clock_t init_start, init_end, draw_start, draw_end;
   float time;
-  unsigned threadCount, numBlocks;
+  unsigned threadCount, numBuckets = 0, resX = 0, resY = 0;
+  char inputFile[1024], outputFile[1024]; 
 
-  if (argc < 2) {
-    printf("You need to specify the number of threads\n");
-    printf("raytracer [threadCount] [numBlocks] inputFile [outputFile], by default numBlocks == 1\n");
+  bool args = getCommandLineArgs(argc, argv,
+                                 threadCount, numBuckets,
+                                 resX, resY, inputFile, outputFile);
+  if (!args) {
+    printf("command line options are:\n");
+    printf("--threadCount, compulsory\n");
+    printf("--inputFile, compulsory, for an example see main/sampleScene.txt\n");
+    printf("--outputFile, optional, location to save the file\n");
+    printf("--resX, --resY - resolution by X and Y, optional\n");
     return 1;
   }
   else {
-    threadCount = atoi(argv[1]);
-    if (argc >= 3)
-      numBlocks = atoi(argv[2]);
+    printf("read args:\n");
+    printf("threadCount: %d\n", threadCount);
+    if (numBuckets == 0) numBuckets = 1;
+    if (resX == 0) resX = 640;
+    if (resY == 0) resY = 480;
   }
 
-  setBuckets(threadCount, numBlocks);
+  setBuckets(threadCount, numBuckets);
   init_start = clock();
   Color *host_vfb, *device_vfb;
   host_vfb = (Color*)malloc(__SIZE * sizeof(Color));
@@ -47,13 +43,10 @@ int main(int argc, char** argv) {
   cudaMalloc((void**)&needsAA, __SIZE * sizeof(bool));
 
   Scene *scene = new Scene, *dev_scene;
-  if (!initGraphics(&screen, RESX, RESY)) return -1;
+  if (!initGraphics(&screen, resX, resY)) return -1;
   scene->readFromFile("main/sampleScene.txt");
-  printf("read file!\n");
-//  scene->initialize();
   cudaMalloc((void**)&dev_scene, sizeof(Scene));
   cudaMemcpy(dev_scene, scene, sizeof(Scene), cudaMemcpyHostToDevice);
-  showObjects<<<1, 1>>>(dev_scene);
   init_end = clock();
   time = ((float)init_end - (float)init_start) / CLOCKS_PER_SEC;
   printf("Sequential: %f s\n", time);

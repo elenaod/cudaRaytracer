@@ -1,3 +1,6 @@
+#ifndef __SCENE_H__
+#define __SCENE_H__
+
 #include <thrust/device_vector.h>
 #include <utils/matrix.cuh>
 #include <basics/camera.cuh>
@@ -9,17 +12,6 @@ public:
   Geometry* geom;
   Shader* shader;
   double dist;
-
-  Node() {}
-  Node(Geometry* g, Shader* s) {
-    geom = g;
-    shader = s;
-  }
-
-  void setNode(Geometry *g, Shader *s) {
-    geom = g;
-    shader = s;
-  }
 };
 
 typedef thrust::device_vector<Node>::iterator iterator;
@@ -42,6 +34,7 @@ struct Scene {
   thrust::device_vector<Shader*> shaders;
 
   void readFromFile(const char* fileName);
-  void initialize();
   void cleanUp();
 };
+
+#endif

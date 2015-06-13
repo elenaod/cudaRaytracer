@@ -1,0 +1,5 @@
+camera: 0 -15 0 0 165 0 90 4 3
+light: 0.4 0.8 0.4 -30 100 250 50000
+geometry: plane -5
+shader: checkered 1 1 1 0 0 0 50
+node: 1 1

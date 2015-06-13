@@ -15,7 +15,7 @@ Plane::Plane(const char* str) :
 }
 
 __host__ __device__
-bool Plane::intersect(const Ray& ray, IntersectionData& data){
+bool Plane::intersect(const Ray& ray, IntersectionData& data) const{
   if ((ray.start.y > y && ray.dir.y > -1e-9) ||
       (ray.start.y < y && ray.dir.y < 1e-9))
     return false;

@@ -1,6 +1,6 @@
 #include <SDL/SDL.h>
 #include <utils/sdl.cuh>
-#include <kernels.cuh>
+#include <main/kernels.cuh>
 #include <cstdio>
 
 const int __SIZE = VFB_MAX_SIZE * VFB_MAX_SIZE;
@@ -18,23 +18,67 @@ void handleExit(bool& running){
   }
 }
 
-int main(int argc, char** argv) {
-  bool running = true;
-  unsigned threadCount, numBlocks;
+bool getCommandLineArgs(int argc, char** argv,
+                        unsigned& threadCount, unsigned& numBuckets,
+                        unsigned& resX, unsigned& resY,
+                        char* inputFile, char* outputFile) {
+  unsigned i = 1;
+  bool fail = true;
 
-  if (argc < 2) {
-    printf("You need to specify the number of threads\n");
-    printf("raytracer [threadCount] [numBlocks], by default numBlocks == 1");
-    return 1;
+  printf("%d", argc);
+  for(; i < argc;){
+    if (strcmp(argv[i], "--threadCount")){
+      threadCount = atoi(argv[i + 1]); i += 1; fail = false;
+    }
+    else if (strcmp(argv[i], "--inputFile")){
+      strcpy(inputFile, argv[i + 1]); i += 2; fail = false;
+    }
+    else if (strcmp(argv[i], "--numBuckets")){
+      numBuckets = atoi(argv[i + 1]); i += 2;
+    }
+    else if (strcmp(argv[i], "--outputFile")){
+      strcpy(outputFile, argv[i + 1]); i += 2;
+    }
+    else if (strcmp(argv[i], "--resX")){
+      resX = atoi(argv[i + 1]); i += 2;
+    }
+    else if (strcmp(argv[i], "--resY")){
+      resY = atoi(argv[i + 1]); i += 2;
+    }
+    else {
+      printf("Unknown argument!"); fail = true;
+      return fail;
+    }
+  }
+
+  return fail;
+}
+
+int main(int argc, char* argv[]) {
+  bool running = true;
+  unsigned threadCount, numBuckets = 0, resX = 0, resY = 0;
+  char inputFile[1024], outputFile[1024]; 
+
+  printf("Starting program...");
+  bool args = getCommandLineArgs(argc, argv,
+                                 threadCount, numBuckets,
+                                 resX, resY, inputFile, outputFile);
+  if (!args) {
+    printf("command line options are:\n");
+    printf("--threadCount, compulsory\n");
+    printf("--inputFile, compulsory, for an example see main/sampleScene.txt\n");
+    printf("--outputFile, optional, location to save the file");
+    printf("--resX, --resY - resolution, optional");
   }
   else {
-    threadCount = atoi(argv[1]);
-    if (argc >= 3)
-      numBlocks = atoi(argv[2]);
-    else numBlocks = 1;
+    printf("read args:\n");
+    printf("threadCount: %d\n", threadCount);
+    if (numBuckets == 0) numBuckets = 1;
+    if (resX == 0) resX = 640;
+    if (resY == 0) resY = 480;
   }
-  
-  setBuckets(threadCount, numBlocks);
+
+  setBuckets(threadCount, numBuckets);
   Color *host_vfb, *device_vfb;
   host_vfb = (Color*)malloc(__SIZE * sizeof(Color));
   cudaMalloc((void**)&device_vfb, __SIZE * sizeof(Color));
@@ -47,9 +91,10 @@ int main(int argc, char** argv) {
   Scene *scene = new Scene, *dev_scene;
   int3 dirs; float3 shift; shift.x = 0.5; shift.y = 0.1; shift.z = 0.1;
   dirs.x = 1; dirs.y = 1; dirs.z = 1;
-  if (!initGraphics(&screen, RESX, RESY)) return -1;
-  scene->readFromFile("sampleScene.txt");
-  printf("read file\n");
+
+  if (!initGraphics(&screen, resX, resY)) return -1;
+  scene->readFromFile("main/sampleScene.txt");
+  printf("read file!");
   cudaMalloc((void**)&dev_scene, sizeof(Scene));
   cudaMemcpy(dev_scene, scene, sizeof(Scene), cudaMemcpyHostToDevice);
 
