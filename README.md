@@ -22,9 +22,13 @@ and select /usr/lib/nvidia-331-updates-prime/ld.so.conf
 ## Arguments
 To run, use
 ```
- raytracer threadCount numBuckets fileName
+ raytracer
 ```
+The command line options are
+  *--threadCount*  The number of threads on which the algorithm runs
+  *--inputFile*    The file from which a scene is read
+  *--outputFile*   The file to which the result image should be saved, optional
+  *--resX*         The width of the image, optional, default = 640
+  *--resY*         The height of the image, optional, default = 480
+  *--numBuckets*   The number of horizontal boxes in which the image is partioned for rendering
 
-*threadCount* - must be present, the number of threads on which the raytracer will run
-*numBlocks* - optional, the number of buckets in a row. Every thread is responsible for rendering a single bucket, and naturally, *numBuckets* should divide *threadCount*
-*fileName* - the name for a file where the resulting picture should be stored. Currently supports only bitmap files
