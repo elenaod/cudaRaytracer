@@ -25,17 +25,16 @@ public:
 
 class CheckerShader: public Shader {
   Color color2;
-  double size;
-  int direction;
 public:
-  CheckerShader() {t = CHECKER; direction = 1;}
+  double size;
+  CheckerShader() {t = CHECKER;}
   CheckerShader(const Color& c1, const Color& c2, double size = 1);
+  CheckerShader(const char* str) {};
 
   __host__ __device__
   Color shade(const Ray& ray,
               const Light& light,
               const IntersectionData& data);
-  void shiftColors();
 };
 
 class Phong: public Shader {
@@ -43,8 +42,8 @@ class Phong: public Shader {
     float strength;
   public:
     Phong() { t = PHONG; }
-    Phong(const Color& diffuse, double e = 16.0, float str = 1.0);
-
+    Phong(const Color& diffuse, double e = 16.0, float str = 1.0) {};
+    Phong(const char* str) {};
     __host__ __device__
     Color shade(const Ray& ray,
                 const Light& light,
@@ -52,7 +51,4 @@ class Phong: public Shader {
                 const IntersectionData& data);
 };
 
-__device__
-Color shade(Shader* shader, const Ray& ray, const Light& light,
-            const bool& visibility, const IntersectionData& data);
 #endif // __SHADING_H__

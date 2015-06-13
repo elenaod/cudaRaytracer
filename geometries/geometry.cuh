@@ -11,13 +11,16 @@ enum geometry_type {
 class Geometry {
   public:
     geometry_type t;
+
+    Geometry() {t = GENERIC;}
+    Geometry(geometry_type type) {t = type;}
 };
 
 class Plane : public Geometry{
-    int y;
   public:
-    Plane() {y = 0; t = PLANE;}
-    Plane(int _y) {y = _y; t = PLANE;}
+    int y;
+    Plane(int _y);
+    Plane(const char* str);
 
     __host__ __device__
     bool intersect (const Ray& ray, IntersectionData& data);
@@ -27,8 +30,8 @@ class Sphere : public Geometry{
     Vector center;
     double R;
   public:
-    Sphere() {t = SPHERE;}
-    Sphere(const Vector& O, double r) : center(O), R(r) {t = SPHERE;}
+    Sphere(const Vector& O, double r);
+    Sphere(const char* str);
 
     __host__ __device__
     bool intersect(const Ray& ray, IntersectionData& data);

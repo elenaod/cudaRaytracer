@@ -12,6 +12,8 @@ public:
   double fov; // in degrees
   double aspect; // 1.3 or ?
 
+  Camera();
+  Camera(const char* str);
   void beginFrame(void);
   __device__
   Ray getScreenRay(double x, double y) const;

@@ -2,6 +2,17 @@
 #include <geometries/geometry.cuh>
 #include <utils/vector.cuh>
 #include <utils/constants.cuh>
+#include <cstdio>
+
+Sphere::Sphere(const Vector& O, double r) : 
+  Geometry(SPHERE), center(O){
+  R = r;
+}
+
+Sphere::Sphere(const char* str) :
+  Geometry(SPHERE){
+  sscanf(str, "%lf%lf%lf%lf", &center.x, &center.y, &center.z, &R);
+}
 
 __host__ __device__
 bool Sphere::intersect(const Ray& ray, IntersectionData& data) {

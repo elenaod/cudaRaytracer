@@ -2,6 +2,17 @@
 #include <geometries/geometry.cuh>
 #include <utils/vector.cuh>
 #include <utils/constants.cuh>
+#include <cstdio>
+
+Plane::Plane(int _y) :
+   Geometry(PLANE) {
+  y = _y;
+}
+
+Plane::Plane(const char* str) :
+    Geometry(PLANE){
+    sscanf(str, "%d", &y);
+}
 
 __host__ __device__
 bool Plane::intersect(const Ray& ray, IntersectionData& data){

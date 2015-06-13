@@ -1,31 +1,13 @@
-#include <main/init.cuh>
-#include <stdio.h>
-#include <unistd.h>
-#include <fcntl.h>
+#include <main/scene.cuh>
+#include <utils/util.cuh>
 /*
   file follows the pattern:
   (geometry: [plane | sphere] <parameters>)*
   (shader: [checkered | shiny] <color>* )*
   (camera: yaw, pitch, roll, fov, aspect, pos.x, pos.y, pos.z)
-  (lihttp://stackoverflow.com/questions/7146719/identifier-string-undefinedght: color.r, color.g, color.b, power, pos.x, pos.y, pos.z)
+  (light: color.r, color.g, color.b, power, pos.x, pos.y, pos.z)
   (node: geometryIndex, shaderIndex)
 */
-
-// this goes to utils
-// ideally, find a parsing library 
-bool getLineFrom(int f, char* line){
-  char c; int i = 0;
-  while( read(f, &c, 1) > 0 ){
-    if (c == '\n'){
-      line[i] = '\0';
-      return true;
-    }
-    line[i] = c;
-    ++i;
-  }
-  line[i] = '\0';
-  return false;
-}
 
 // TODO: make better!
 void Scene::readFromFile(const char* fileName){
@@ -43,9 +25,7 @@ void Scene::readFromFile(const char* fileName){
       printf("%s", gtype);
       line += strlen(gtype) + 1;
       if (strcmp(gtype, "plane") == 0) {
-        int y;
-        sscanf(line, "%d", &y);
-        Plane *p = new Plane (y);
+        Plane *p = new Plane (line);
         Plane *dev_p = 0;
         cudaMalloc((void**)&dev_p, sizeof(Plane));
         cudaMemcpy(dev_p, p, sizeof(Plane), cudaMemcpyHostToDevice);
@@ -53,9 +33,7 @@ void Scene::readFromFile(const char* fileName){
         delete p;
       }
       else if (strcmp(gtype, "sphere") == 0){
-        float x, y, z; double r;
-        sscanf(line, "%f%f%f%lf", &x, &y, &z, &r);
-        Sphere *s = new Sphere( Vector(x, y, z), r);
+        Sphere *s = new Sphere(line);
         Sphere *dev_s = 0;
         cudaMalloc((void**)&dev_s, sizeof(Sphere));
         cudaMemcpy(dev_s, s, sizeof(Sphere), cudaMemcpyHostToDevice);
@@ -94,23 +72,14 @@ void Scene::readFromFile(const char* fileName){
       }
     }
     else if (strcmp(object, "camera:") == 0){
-      Camera *cam = new Camera;
-      float aspectX, aspectY;
-      sscanf(line, "%lf%lf%lf%lf%lf%lf%lf%f%f",
-                    &cam->yaw, &cam->pitch, &cam->roll,
-                    &cam->pos.x, &cam->pos.y, &cam->pos.z,
-                    &cam->fov, &aspectX, &aspectY);
-      cam->aspect = aspectX / aspectY;
+      Camera *cam = new Camera (line);
       cam->beginFrame();
       cudaMalloc((void**)&camera, sizeof(Camera));
       cudaMemcpy(camera, cam, sizeof(Camera), cudaMemcpyHostToDevice);
       delete cam;
     }
     else if (strcmp(object, "light:") == 0){
-      Light *_l = new Light;
-      sscanf(line, "%f%f%f%lf%lf%lf%f",
-                    &_l->color.r, &_l->color.g, &_l->color.b,
-                    &_l->pos.x, &_l->pos.y, &_l->pos.z, &_l->power);
+      Light *_l = new Light (line);
       cudaMalloc((void**)&light, sizeof(Light));
       cudaMemcpy(light, _l, sizeof(Light), cudaMemcpyHostToDevice);
       delete _l;

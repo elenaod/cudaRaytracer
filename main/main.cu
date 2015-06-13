@@ -1,25 +1,40 @@
 #include <SDL/SDL.h>
 #include <utils/sdl.cuh>
-#include <kernels.cuh>
+#include <main/kernels.cuh>
 #include <cstdio>
 
 const int __SIZE = VFB_MAX_SIZE * VFB_MAX_SIZE;
 SDL_Surface* screen = NULL;
+
+__global__
+void showObjects(Scene* scene){
+  printf("Showing objects\n");
+  printf("camera pos: %f,%f,%f\n", scene->camera->pos.x, scene->camera->pos.y, scene->camera->pos.z);
+  printf("light pos: %f, %f, %f\n", scene->light->pos.x,
+           scene->light->pos.y, scene->light->pos.z);
+  Node value = *(scene->start);
+  Plane* pl = (Plane*)value.geom;
+  printf("value.geom: y = %d\n", pl->y);
+  CheckerShader* checker = (CheckerShader*)value.shader;
+  printf("value.shader: size = %d, %lf\n", checker, checker->size);
+}
 
 int main(int argc, char** argv) {
   clock_t init_start, init_end, draw_start, draw_end;
   float time;
   unsigned threadCount, numBlocks;
 
-  if (argc < 3) {
+  if (argc < 2) {
     printf("You need to specify the number of threads\n");
-    printf("raytracer [threadCount] [numBlocks], by default numBlocks == 1");
+    printf("raytracer [threadCount] [numBlocks] inputFile [outputFile], by default numBlocks == 1\n");
+    return 1;
   }
   else {
     threadCount = atoi(argv[1]);
-    numBlocks = atoi(argv[2]);
+    if (argc >= 3)
+      numBlocks = atoi(argv[2]);
   }
-  
+
   setBuckets(threadCount, numBlocks);
   init_start = clock();
   Color *host_vfb, *device_vfb;
@@ -33,10 +48,12 @@ int main(int argc, char** argv) {
 
   Scene *scene = new Scene, *dev_scene;
   if (!initGraphics(&screen, RESX, RESY)) return -1;
-  scene->initialize();
+  scene->readFromFile("main/sampleScene.txt");
+  printf("read file!\n");
+//  scene->initialize();
   cudaMalloc((void**)&dev_scene, sizeof(Scene));
   cudaMemcpy(dev_scene, scene, sizeof(Scene), cudaMemcpyHostToDevice);
-
+  showObjects<<<1, 1>>>(dev_scene);
   init_end = clock();
   time = ((float)init_end - (float)init_start) / CLOCKS_PER_SEC;
   printf("Sequential: %f s\n", time);

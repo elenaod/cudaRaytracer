@@ -1,4 +1,5 @@
 #include <shaders/shading.cuh>
+#include <cstdio>
 
 CheckerShader::CheckerShader(const Color& c1,
                              const Color& c2,
@@ -6,7 +7,6 @@ CheckerShader::CheckerShader(const Color& c1,
   color2 = c2;
   this->size = size;
   t = CHECKER;
-  direction = 1;
 }
 
 __host__ __device__
@@ -29,15 +29,3 @@ Color CheckerShader::shade(const Ray& ray, const Light& light,
   result = result * cosTheta;
   return result;
 }
-
-// well that's stupid; apparently there's Color::shift()
-void CheckerShader::shiftColors() {
-  if (direction == 1) {
-    color.r = 1 - color.r; color.b = 1 - color.b; color.g = 1 - color.g;
-  }
-  if (direction == 0) {
-    color2.r = 1 - color2.r; color2.b = 1 - color2.b; color2.g = 1 - color2.g;
-  }
-  direction = 1 - direction;
-} 
-

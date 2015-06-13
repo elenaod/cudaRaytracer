@@ -1,4 +1,4 @@
-#include <kernels.cuh>
+#include <main/kernels.cuh>
 #include <cstdio>
 
 __constant__ unsigned bucketSizeX, bucketSizeY;
@@ -14,6 +14,37 @@ void setBuckets(const int& threadCount, const int& blocks){
   cudaMemcpyToSymbol(bucketSizeY, &sizeY, sizeof(unsigned));
 }
 
+__device__
+bool intersect(Geometry* geom, const Ray& ray, IntersectionData& data){
+  switch(geom->t){
+    case PLANE: {
+      Plane *p = (Plane*) geom;
+      return p->intersect(ray, data);
+    }
+    case SPHERE: {
+      Sphere *s = (Sphere*) geom;
+      return s->intersect(ray, data);
+    }
+  };
+  return false;
+}
+
+__device__
+Color shade(Shader* shader, const Ray& ray, const Light& light,
+            const bool& visibility, const IntersectionData& data){
+  switch(shader->t){
+    case CHECKER: {
+      CheckerShader* s = (CheckerShader*) shader;
+      Color c = s->shade(ray, light, data);
+      return c;
+    }
+    case PHONG: {
+      Phong *ph = (Phong*) shader;
+      return ph->shade(ray, light, visibility, data);
+    }
+  }
+  return Color(0, 1, 0);
+}
 __device__
 bool testVisibility(iterator start, iterator end, 
                     const Vector& from, const Vector& to){
@@ -78,9 +109,12 @@ __global__
 void renderScene(Scene* scene, Color* buffer) {
   int2 c = calculateCoordinates();
 
+//  printf("Rendering scene...\n");
   for(int i = c.x * bucketSizeX; i < (c.x + 1) * bucketSizeX; ++i)
     for(int j = c.y * bucketSizeY; j < (c.y + 1) * bucketSizeY; ++j){
     Ray ray = scene->camera->getScreenRay(i, j);
+//    printf("Coloring VFB...\n");
+//    printf("ray is: %f, %f, %f\n", ray.dir.x, ray.dir.y, ray.dir.z);
     buffer[j * VFB_MAX_SIZE + i] = raytrace(ray, *scene->light,
                                             scene->start, scene->end);
   }

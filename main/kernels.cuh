@@ -1,4 +1,4 @@
-#include <init.cuh>
+#include <main/scene.cuh>
 
 void setBuckets(const int& threadCount, const int& blocks);
 
