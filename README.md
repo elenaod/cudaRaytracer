@@ -25,10 +25,10 @@ To run, use
  raytracer
 ```
 The command line options are
-  *--threadCount*  The number of threads on which the algorithm runs
-  *--inputFile*    The file from which a scene is read
-  *--outputFile*   The file to which the result image should be saved, optional
-  *--resX*         The width of the image, optional, default = 640
-  *--resY*         The height of the image, optional, default = 480
-  *--numBuckets*   The number of horizontal boxes in which the image is partioned for rendering
+  - *--threadCount*  The number of threads on which the algorithm runs
+  - *--inputFile*    The file from which a scene is read
+  - *--outputFile*   The file to which the result image should be saved, optional
+  - *--resX*         The width of the image, optional, default = 640
+  - *--resY*         The height of the image, optional, default = 480
+  - *--numBuckets*   The number of horizontal boxes in which the image is partioned for rendering
 
